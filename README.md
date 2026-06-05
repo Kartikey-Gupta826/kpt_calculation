@@ -1,81 +1,89 @@
-# TrueKPT: Machine Learning Pipeline for Accurate Kitchen Preparation Time Prediction
+# TrueKPT Prediction System
+
+**A multi-stage machine learning pipeline for predicting restaurant Kitchen Preparation Time (KPT) using merchant intelligence, operational signals, and temporal features.**
 
 ## Overview
 
-Food delivery platforms rely heavily on **Kitchen Preparation Time (KPT)** predictions to schedule rider dispatch and reduce wait times. In many systems, restaurants manually mark **Food Order Ready Time (FOR)**, which is often unreliable due to delayed marking or operational bias.
+Food delivery platforms depend on accurate Kitchen Preparation Time (KPT) estimates to optimize rider dispatch and minimize wait times.
 
-This project builds a **multi-stage machine learning pipeline** to estimate the **true preparation time (TrueKPT)** using operational signals from restaurants and order dynamics.
+Many systems rely on a merchant-provided **Food Order Ready (FOR)** signal, which is often noisy due to:
 
-The system progressively improves prediction accuracy through:
+* Delayed readiness marking
+* Operational inconsistencies
+* Kitchen congestion
+* Merchant-specific behavior
 
-* Baseline ML modeling
-* Operational signal engineering
-* Merchant reliability scoring
-* Sequential kitchen congestion modeling
-* Time-aware recency weighting
-
-The final system reduces prediction error significantly compared to raw merchant signals.
+This project develops a **two-stage machine learning pipeline** that estimates the true preparation time (**TrueKPT**) by combining restaurant behavior signals, operational workload metrics, and temporal features.
 
 ---
 
-# Project Pipeline
+## Pipeline Architecture
 
-The model architecture follows a **two-stage prediction pipeline**.
-
-```
+```text
 Restaurant Signals
         │
         ▼
-Stage 1: Clean FOR Prediction
-(Random Forest + Feature Engineering)
+Enhanced Merchant Intelligence
+        │
+        ├── FOR Reliability Score
+        ├── Kitchen Clustering Score
+        ├── Acceptance Proxy Score
+        ▼
+Enhanced Merchant Score
         │
         ▼
-Predicted Clean Preparation Time
+Stage 1: Enhanced FOR Predictor
+(Random Forest)
         │
         ▼
-Stage 2: TrueKPT Prediction
-(Random Forest + Enhanced Signals)
+Predicted Enhanced FOR
         │
         ▼
-Final Kitchen Preparation Time Prediction
+Stage 2: TrueKPT Predictor
+(Random Forest + Time Features)
+        │
+        ▼
+Final Kitchen Preparation Time
 ```
 
 ---
 
-# Models Implemented
+## Model Evolution
 
-The project compares multiple approaches to quantify improvements.
+The project progressively improves prediction quality through multiple modeling stages.
 
-## 1. Raw Merchant Prediction
+### 1. Raw Merchant FOR
 
-Uses the restaurant provided **merchant_FOR_time** directly.
+Uses the merchant-provided readiness estimate directly.
 
-This represents the **current operational baseline**.
+**Features**
 
-MAE: **3.50 minutes**
+* merchant_FOR_time
+
+**Purpose**
+
+Operational benchmark.
 
 ---
 
-## 2. Baseline Machine Learning Model
+### 2. Baseline Model
 
-Features used:
+Random Forest model using basic restaurant context.
+
+**Features**
 
 * merchant_FOR_time
 * food_item
 * order_hour
 * peak_hour
 
-Model:
-
-* Random Forest Regressor
-
-MAE: **0.59 minutes**
-
 ---
 
-## 3. Advanced Model
+### 3. Advanced Model
 
-Adds operational signals:
+Introduces operational workload signals.
+
+**Additional Features**
 
 * total_active_orders
 * competitor_load
@@ -83,143 +91,137 @@ Adds operational signals:
 * restaurant_avg_prep
 * restaurant_std_prep
 
-Pipeline:
+**Architecture**
 
-1. Predict **clean FOR**
-2. Use prediction to estimate **true KPT**
-
-MAE: **0.31 minutes**
+```text
+Stage 1
+Predict Clean FOR
+        ↓
+Stage 2
+Predict True KPT
+```
 
 ---
 
-## 4. Enhanced Model (TrueKPT)
+### 4. Enhanced Model
 
-Introduces **new operational signals** to model restaurant behavior more accurately.
+Introduces merchant behavior intelligence.
 
-### New Signals
+#### FOR Reliability Score
 
-#### 1. FOR Reliability Score
+Measures historical accuracy of merchant FOR reporting.
 
-Measures how reliable a restaurant’s FOR signal is.
+Captures:
 
-Penalizes:
+* reporting bias
+* delayed readiness marking
+* consistency
 
-* delayed marking
-* large deviation from true KPT
-* inconsistent reporting
+#### Kitchen Clustering Score
 
-#### 2. Sequential Order Clustering
-
-Captures kitchen congestion.
-
-Uses:
+Models kitchen congestion using:
 
 * active orders
 * orders within the same hour
 
-#### 3. Acceptance Proxy Score
+#### Acceptance Proxy Score
 
-Measures merchant attentiveness by comparing observed KPT vs average preparation time.
+Measures merchant attentiveness and operational consistency.
 
-#### 4. Enhanced Merchant Intelligence Score
+#### Enhanced Merchant Score
 
-Weighted combination:
-
-```
-Enhanced Score =
-0.25 * merchant_intelligence_score
-0.35 * FOR reliability score
-0.20 * clustering score
-0.20 * acceptance proxy score
+```text
+0.25 × Merchant Intelligence Score
+0.35 × FOR Reliability Score
+0.20 × Clustering Score
+0.20 × Acceptance Proxy Score
 ```
 
 ---
 
-## 5. Time-Aware Model
+### 5. TrueKPT Final Model
 
-Adds temporal dynamics.
+Final production-style prediction system.
 
-New features:
+#### Additional Features
+
+**Temporal Features**
 
 * order_weekday
 * order_minute
-* recency_weight
 
-Recency weighting gives **more importance to recent orders**, simulating kitchen queue priority.
+**Recency Weighting**
 
----
+Recent orders receive greater influence during training to simulate changing kitchen conditions and queue dynamics.
 
-# Final Model Results
+#### Final Architecture
 
-| Model              | MAE       | P50       | P90       |
-| ------------------ | --------- | --------- | --------- |
-| Raw Merchant FOR   | 3.503     | 3.464     | 5.629     |
-| Baseline ML        | 0.593     | 0.428     | 1.249     |
-| Advanced ML        | 0.314     | 0.144     | 0.858     |
-| TrueKPT (Enhanced) | **0.312** | **0.139** | **0.839** |
-
-### Improvements
-
-* **91% reduction in MAE vs raw merchant signals**
-* **85% reduction in P90 error**
-* Significant reduction in prediction variance
-
----
-
-# Rider Wait Time Simulation
-
-The model also simulates rider arrival timing.
-
-Dispatch buffer: **1.5 minutes**
-
-| Model            | Avg Rider Wait |
-| ---------------- | -------------- |
-| Raw Merchant FOR | 0.00 min       |
-| Baseline ML      | 0.025 min      |
-| TrueKPT Model    | **0.015 min**  |
-
-This indicates **better alignment between rider arrival and food readiness**.
-
----
-
-# Feature Importance
-
-The most influential feature is:
-
-```
-predicted_enhanced_FOR
+```text
+Enhanced Signals
+        ↓
+Stage 1 RF
+        ↓
+Predicted Enhanced FOR
+        ↓
+Time Features
+        ↓
+Recency-Weighted RF
+        ↓
+TrueKPT Prediction
 ```
 
-This validates the **two-stage prediction pipeline**, where accurate preparation estimation drives final prediction quality.
+---
 
-Other contributing signals:
+## Results
 
-* enhanced_merchant_score
-* for_reliability_score
-* clustering_score
-* recency_weight
+| Model            | MAE (min) | P50 (min) | P90 (min) |
+| ---------------- | --------: | --------: | --------: |
+| Raw Merchant FOR |     3.503 |     3.464 |     5.629 |
+| Baseline ML      |     0.593 |     0.428 |     1.249 |
+| Advanced ML      |     0.314 |     0.144 |     0.858 |
+| Enhanced ML      |     0.312 |     0.139 |     0.839 |
+| TrueKPT Final    |     0.312 |     0.139 |     0.839 |
 
 ---
 
-# Visualizations Generated
+## Key Improvements
 
-The project automatically produces **9 analytical visualizations**:
+Compared to raw merchant readiness estimates:
 
-1. FOR Bias Distribution
-2. MAE / P50 / P90 Error Comparison
-3. Error Distribution Curves
-4. Prediction Error by Hour of Day
-5. Feature Importance
-6. Merchant Reliability vs Error
-7. Rider Wait Time Simulation
-8. Recency Weight Impact
-9. Merchant Intelligence Score Components
-
-These help explain the behavior of the model and validate feature design.
+* ~91% reduction in MAE
+* Significant reduction in P90 error
+* More stable prediction performance
+* Better modeling of merchant behavior
+* Improved handling of operational congestion
 
 ---
 
-# Technologies Used
+## Feature Engineering Highlights
+
+### Merchant Intelligence Signals
+
+* FOR Reliability Score
+* Acceptance Proxy Score
+* Enhanced Merchant Score
+
+### Operational Signals
+
+* Total Active Orders
+* Competitor Load
+* Orders This Hour
+* Kitchen Clustering Score
+
+### Temporal Signals
+
+* Order Weekday
+* Order Minute
+* Recency Weight
+
+---
+
+## Technologies Used
+
+### Core Libraries
 
 * Python
 * NumPy
@@ -228,42 +230,62 @@ These help explain the behavior of the model and validate feature design.
 * Matplotlib
 * Seaborn
 
-Models:
+### Models
 
 * Random Forest Regressor
 * Feature Engineering Pipelines
-* Two-stage prediction architecture
+* Two-Stage Prediction Architecture
 
 ---
 
-# Key Contributions
+## Repository Structure
 
-This project demonstrates:
-
-* Building **multi-stage ML pipelines**
-* Designing **operational intelligence signals**
-* Improving **prediction reliability for logistics systems**
-* Modeling **restaurant behavior and kitchen congestion**
-
-The system shows how **domain-aware feature engineering** can significantly improve real-world ML prediction performance.
+```text
+truekpt-prediction/
+│
+├── README.md
+├── requirements.txt
+├── TrueKPT_Prediction_System.ipynb
+│
+├── data/
+│   └── sample_data.csv
+│
+└── images/
+    ├── mae_comparison.png
+    └── feature_importance.png
+```
 
 ---
 
-# Running the Project
+## Running the Project
 
 Install dependencies:
 
-```
+```bash
 pip install numpy pandas scikit-learn matplotlib seaborn
 ```
 
-Run the notebook or script containing the training pipeline.
+Open:
 
-The script will:
+```text
+TrueKPT_Prediction_System.ipynb
+```
 
-1. Train all models
-2. Generate prediction metrics
-3. Produce visualization plots
-4. Save comparison figures
+Run all notebook cells sequentially.
+
+The notebook will:
+
+* Train all model variants
+* Generate prediction metrics
+* Produce comparison tables
+* Generate feature importance visualizations
 
 ---
+
+## Future Improvements
+
+* Gradient Boosting / XGBoost comparison
+* Real timestamp-based temporal features
+* Cross-validation evaluation
+* Online learning for continuously changing restaurant behavior
+* Deployment as a real-time prediction API
